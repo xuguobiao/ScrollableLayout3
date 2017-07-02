@@ -28,7 +28,7 @@ import java.util.List;
  */
 public class SimpleDemoFragment extends Fragment {
 
-    private ScrollableLayout mScrollLayout;
+    public static ScrollableLayout mScrollLayout;
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {

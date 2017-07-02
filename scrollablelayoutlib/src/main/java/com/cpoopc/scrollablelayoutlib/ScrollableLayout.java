@@ -32,6 +32,7 @@ import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.animation.AnimationUtils;
 import android.widget.LinearLayout;
 import android.widget.Scroller;
 
@@ -41,6 +42,9 @@ import android.widget.Scroller;
 public class ScrollableLayout extends LinearLayout {
 
     private final String tag = "cp:scrollableLayout";
+    static final int ANIMATED_SCROLL_GAP = 250;
+
+    private long mLastScrollTime;
     private float mDownX;
     private float mDownY;
     private float mLastY;
@@ -208,16 +212,16 @@ public class ScrollableLayout extends LinearLayout {
                     mVelocityTracker.computeCurrentVelocity(1000, mMaximumVelocity);
                     float yVelocity = -mVelocityTracker.getYVelocity();
                     boolean dislowChild = false;
-                    if (Math.abs(yVelocity) > mMinimumVelocity) {
-                        mDirection = yVelocity > 0 ? DIRECTION.UP : DIRECTION.DOWN;
-                        if ((mDirection == DIRECTION.UP && isSticked()) || (!isSticked() && getScrollY() == 0 && mDirection == DIRECTION.DOWN)) {
-                            dislowChild = true;
-                        } else {
-                            mScroller.fling(0, getScrollY(), 0, (int) yVelocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-                            mScroller.computeScrollOffset();
-                            mLastScrollerY = getScrollY();
-                            invalidate();
-                        }
+                    mDirection = yVelocity > 0 ? DIRECTION.UP : DIRECTION.DOWN;
+                    if ((mDirection == DIRECTION.UP && isSticked()) || (!isSticked() && getScrollY() == 0 && mDirection == DIRECTION.DOWN)) {
+                        dislowChild = true; // 让listView滑动，layout不滑动
+                    } else {
+//                        mScroller.fling(0, getScrollY(), 0, (int) yVelocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+//                        mScroller.computeScrollOffset();
+                        mLastScrollerY = getScrollY();
+                        int dy = mDirection == DIRECTION.UP ? getMaxY() - mLastScrollerY : -mLastScrollerY;
+                        mScroller.startScroll(0, mLastScrollerY, 0, dy);
+                        postInvalidateDelayed(10);
                     }
                     if (!dislowChild && (isClickHead || !isSticked())) {
                         int action = ev.getAction();
@@ -227,12 +231,22 @@ public class ScrollableLayout extends LinearLayout {
                         return dispathResult;
                     }
                 }
+
                 break;
             default:
                 break;
         }
         super.dispatchTouchEvent(ev);
         return true;
+    }
+
+    private void handleActionUp() {
+        if (mLastScrollerY > 0 && mLastScrollerY < getMaxY()) {
+            int dx = mDirection == DIRECTION.UP ? getMaxY() - mLastScrollerY : -mLastScrollerY;
+            mScroller.startScroll(0, mLastScrollerY, 0, dx);
+            postInvalidateDelayed(10);
+        }
+
     }
 
     @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
@@ -251,31 +265,45 @@ public class ScrollableLayout extends LinearLayout {
         if (mScroller.computeScrollOffset()) {
             final int currY = mScroller.getCurrY();
             if (mDirection == DIRECTION.UP) {
-                // 手势向上划
-                if (isSticked()) {
-                    int distance = mScroller.getFinalY() - currY;
-                    int duration = calcDuration(mScroller.getDuration(), mScroller.timePassed());
-                    mHelper.smoothScrollBy(getScrollerVelocity(distance, duration), distance, duration);
-                    mScroller.forceFinished(true);
-                    return;
-                } else {
+                scrollTo(0, currY);
+            } else {
+                if (mHelper.isTop()) {
                     scrollTo(0, currY);
                 }
-            } else {
-                // 手势向下划
-                if (mHelper.isTop() || isClickHeadExpand) {
-                    int deltaY = (currY - mLastScrollerY);
-                    int toY = getScrollY() + deltaY;
-                    scrollTo(0, toY);
-                    if (mCurY <= minY) {
-                        mScroller.forceFinished(true);
-                        return;
-                    }
-                }
-                invalidate();
             }
             mLastScrollerY = currY;
+            postInvalidateDelayed(10);
+
+        } else {
+//            handleActionUp();
         }
+    }
+
+    public void smoothScrollTo(int y) {
+        smoothScrollTo(0, y);
+    }
+
+    public void smoothScrollTo(int x, int y) {
+        if (getChildCount() == 0) {
+            // Nothing to do.
+            return;
+        }
+        int lastScrollX = getScrollX();
+        int lastScrollY = getScrollY();
+        int dx = x - lastScrollX;
+        int dy = y - lastScrollY;
+        long duration = AnimationUtils.currentAnimationTimeMillis() - mLastScrollTime;
+        if (duration > ANIMATED_SCROLL_GAP) {
+
+            mScroller.startScroll(lastScrollX, lastScrollY, dx, dy);
+            postInvalidateDelayed(10);
+        } else {
+            if (!mScroller.isFinished()) {
+                mScroller.abortAnimation();
+            }
+            scrollTo(x, y);
+        }
+        mLastScrollTime = AnimationUtils.currentAnimationTimeMillis();
     }
 
     @Override

@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class ListFragment extends ScrollAbleFragment implements ScrollableHelper.ScrollableContainer{
+public class ListFragment extends ScrollAbleFragment implements ScrollableHelper.ScrollableContainer {
 
     private ListView mListview;
 
@@ -42,6 +42,11 @@ public class ListFragment extends ScrollAbleFragment implements ScrollableHelper
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Toast.makeText(getActivity(), "点击item" + position, Toast.LENGTH_SHORT).show();
+                if (position == 0) {
+                    SimpleDemoFragment.mScrollLayout.smoothScrollTo(0, 0);
+                }else{
+                    SimpleDemoFragment.mScrollLayout.smoothScrollTo(0, SimpleDemoFragment.mScrollLayout.getMaxY());
+                }
             }
         });
         return view;
